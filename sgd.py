@@ -16,9 +16,9 @@ def accuracy(data, predictions):
     total = len(data)
     correct = 0
     for point, pred in zip(data, predictions):
-        if (np.array_equal(point["label"], pred)):
+        if (pred[0] < 0.5 and point["label"][0] == 0) or (pred[0] >= 0.5 and point["label"][0] == 1):
             correct += 1
-    return float(correct) / total
+    return 1.0 * float(correct) / total
 
 class model:
     def __init__(self, structure):
@@ -30,57 +30,53 @@ class model:
             
     # TODO: Calculate prediction based on model
     def predict(self, point):
-        ans = logistic(point["features"] * self.weights[-1] + self.bias[-1])
+        ans = self.feedforward(point)
         # print "ans is: " , ans
-        return  np.matrix(ans)
+        return  ans[-1]
 
     # TODO: Update model using learning rate and L2 regularization
     def update(self, a, delta, eta, lam):
-        # print "a is: ", type(a["features"])
-        # print "deltaa is: ", type(delta)
-        # print "eta is: ", type(eta)
-        # print "lam is: ", type(lam)
-        # print "self.weights is: ", type(self.weights)
-        # m = map(lambda x: lam * x, self.weights)
-        # print self.weights[0].shape
-        # f = (a["features"] * delta.item(0)).shape
-        # print f
-        grad_weights = lam * self.weights[0] - (a["features"] * delta.item(0)).transpose()
-        self.weights[0] -= eta*grad_weights
-        grad_bias = (np.ones(a["features"].shape)*delta.item(0)).transpose()
-        self.bias -= eta*grad_bias
+        for i in range(0, len(self.weights)):
+            grad_weights = lam * self.weights[i] - (a[i] * delta[i].item(0)).transpose()
+            self.weights[i] -= eta*grad_weights
+            grad_bias =  - np.transpose(delta[i].item(0))
+            self.bias[i] -= eta*grad_bias
 
     # TODO: Perform the forward step of backpropagation
     def feedforward(self, point):
         a = []
         a.append(point["features"])
         for weight, bias in zip(self.weights, self.bias):
-            # print weight.shape
-            # print a[-1].shape
-            # print bias.shape
             M = logistic(a[-1]*weight + bias)
-            # print M.shape
             a.append(M)
         return a
         
     
     # TODO: Backpropagate errors
     def backpropagate(self, a, label):
-        print a
-        print label
+        L = len(a) - 1
+        sigma = label - a[-1]
+        result = []
+        result.insert(0, label - a[-1])
+        while L > 1:
+            sigma = np.dot(sigma, np.multiply(a[L - 1], 1 - a[L - 1]))
+            sigma = np.multiply(self.weights[L -1], sigma.transpose())
+            L = L - 1
+            result.insert(0, sigma)
+        return result
+            
+        
+        
 
     # TODO: Train your model
     def train(self, data, epochs, rate, lam):
         length = len(data)
-        for i in range(epochs):
-            d = list(data)
-            for i in range(length):
-                random_index = random.randrange(0,len(d))
-                point = d.pop(random_index)
-                # print "d[\"label\"] is: ", point["label"]
-                # print "self.predict(point) is:", self.predict(point)
-                delta = point["label"] - self.predict(point)
-                self.update(point, delta, rate, lam)
+        for i in range(epochs*length):
+            random_index = random.randrange(0,length)
+            point = data[random_index]
+            a = self.feedforward(point)
+            delta = self.backpropagate(a, point["label"])
+            self.update(a, delta, rate, lam)
 
 def logistic_regression(data, lam=0.00001):
     m = model([data[0]["features"].shape[1], 1])

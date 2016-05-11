@@ -79,7 +79,8 @@ class SGDTest(unittest.TestCase):
         a = m.feedforward(point)
         delta = m.backpropagate(a, np.matrix([1]))
         answer = [np.matrix([0.00231508, 0.00385847, -0.00015008]).T, np.matrix([0.00681828])]
-        
+        print delta
+        print answer
         for i in range(len(delta)):
             for j in range(delta[i].shape[1]):
                 self.assertAlmostEqual(delta[i][0,j], answer[i][0,j])
